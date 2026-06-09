@@ -8,12 +8,38 @@ projects such as `bike_network_traffic`: Python traitlets define the widget
 state, the JavaScript frontend is bundled with esbuild, and Hatch ships the
 compiled widget module inside the wheel.
 
+## Install from the repo
+
+To install the widget directly from GitHub:
+
+```bash
+pip install "cell-motility-painting-aligner @ git+https://github.com/cornhundred/cell_motility_and_painting_aligner.git"
+```
+
+For private-repo or SSH-based access:
+
+```bash
+pip install "cell-motility-painting-aligner @ git+ssh://git@github.com/cornhundred/cell_motility_and_painting_aligner.git"
+```
+
+The repo includes the bundled JavaScript widget asset, so users installing from
+the repo do not need Node.js unless they are editing the frontend.
+
 ## Install for development
+
+Clone the repo and install it in editable mode:
+
+```bash
+git clone https://github.com/cornhundred/cell_motility_and_painting_aligner.git
+cd cell_motility_and_painting_aligner
+pip install -e ".[dev,analysis]"
+```
+
+If you edit anything in `js/`, rebuild the widget bundle:
 
 ```bash
 npm --prefix js install
 npm --prefix js run build
-pip install -e ".[dev]"
 ```
 
 For a source or wheel build:
@@ -21,6 +47,11 @@ For a source or wheel build:
 ```bash
 python -m build
 ```
+
+See [docs/workflow.md](docs/workflow.md) for the expected experiment layout and
+the broader Cellpose, CellProfiler, tracking, matching, and phenotype-correlation
+roadmap. The starter notebook is
+[examples/pipeline_starter.ipynb](examples/pipeline_starter.ipynb).
 
 ## Notebook usage
 
@@ -104,4 +135,3 @@ Coordinates are stored in native pixel space.
 The fitted transform is a 2D similarity transform: translation, uniform scale,
 and rotation. Use three or more landmarks when possible so residuals and RMSE
 are meaningful.
-

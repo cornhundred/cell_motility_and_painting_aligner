@@ -29,6 +29,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+analysis = ["matplotlib>=3.7", "pandas>=2.0", "tifffile>=2023.7"]
 dev = ["ruff", "pytest>=8.0", "build", "twine"]
 
 [tool.hatch.envs.default]
@@ -66,7 +67,17 @@ build_cmd = "build"
 packages = ["src/cell_motility_painting_aligner"]
 
 [tool.hatch.build.targets.sdist]
-include = ["/src", "/js", "/tests", "/examples", "/pyproject.toml", "/README.md", "/LICENSE"]
+include = [
+  "/src",
+  "/js",
+  "/tests",
+  "/examples",
+  "/examples/*.ipynb",
+  "/docs",
+  "/pyproject.toml",
+  "/README.md",
+  "/LICENSE",
+]
 exclude = ["/js/node_modules", "/node_modules"]
 
 [tool.ruff]
