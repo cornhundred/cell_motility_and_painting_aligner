@@ -1,0 +1,26 @@
+{
+  "name": "cell-motility-painting-aligner-js",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "esbuild aligner_widget.mjs --bundle --format=esm --outfile=../src/cell_motility_painting_aligner/bundled/widget.js --platform=browser --target=es2022 --legal-comments=none --define:define.amd=false"
+  },
+  "dependencies": {
+    "@deck.gl-community/layers": "9.2.8",
+    "@deck.gl-community/editable-layers": "9.2.8",
+    "@deck.gl/core": "9.2.8",
+    "@deck.gl/layers": "9.2.8",
+    "deck.gl": "9.2.8"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  },
+  "overrides": {
+    "@luma.gl/constants": "9.2.6",
+    "@luma.gl/core": "9.2.6",
+    "@luma.gl/engine": "9.2.6",
+    "@luma.gl/gltf": "9.2.6",
+    "@luma.gl/shadertools": "9.2.6",
+    "@luma.gl/webgl": "9.2.6"
+  }
+}
