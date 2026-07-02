@@ -3,13 +3,13 @@ requires = ["hatchling>=1.26.1", "hatch-jupyter-builder>=0.5.0"]
 build-backend = "hatchling.build"
 
 [project]
-name = "cell-motility-painting-aligner"
+name = "motility-painting"
 version = "0.1.0"
 description = "Jupyter anywidget for aligning one motility image to many Cell Painting images"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
-authors = [{ name = "cell-motility-painting-aligner contributors" }]
+authors = [{ name = "motility-painting contributors" }]
 keywords = ["jupyter", "widget", "anywidget", "deck.gl", "microscopy", "registration"]
 classifiers = [
   "Framework :: Jupyter",
@@ -50,12 +50,12 @@ dependencies = ["pytest>=8.0"]
 test = "pytest {args:tests}"
 
 [tool.hatch.build]
-artifacts = ["src/cell_motility_painting_aligner/bundled/widget.js"]
+artifacts = ["src/motility_painting/static/aligner.js"]
 
 [tool.hatch.build.hooks.jupyter-builder]
 build-function = "hatch_jupyter_builder.npm_builder"
-ensured-targets = ["src/cell_motility_painting_aligner/bundled/widget.js"]
-skip-if-exists = ["src/cell_motility_painting_aligner/bundled/widget.js"]
+ensured-targets = ["src/motility_painting/static/aligner.js"]
+skip-if-exists = ["src/motility_painting/static/aligner.js"]
 dependencies = ["hatch-jupyter-builder>=0.5.0"]
 
 [tool.hatch.build.hooks.jupyter-builder.build-kwargs]
@@ -64,7 +64,7 @@ npm = "npm"
 build_cmd = "build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/cell_motility_painting_aligner"]
+packages = ["src/motility_painting"]
 
 [tool.hatch.build.targets.sdist]
 include = [
@@ -101,7 +101,7 @@ select = ["E4", "E7", "E9", "F", "B", "I", "UP", "RUF"]
 ignore = ["E501"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["cell_motility_painting_aligner"]
+known-first-party = ["motility_painting"]
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]

@@ -149,7 +149,7 @@ tracking, and feature extraction.
 
 ## Starter Code
 
-The reusable helpers live in `cell_motility_painting_aligner.pipeline`:
+The reusable helpers live in `motility_painting.pipeline`:
 
 - input discovery for the live-cell TIFF and Cell Painting `.ims` layouts
 - Cellpose command construction for live-cell segmentation

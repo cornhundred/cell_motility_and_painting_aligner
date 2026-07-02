@@ -7,15 +7,15 @@ import anywidget
 import numpy as np
 import traitlets
 
-from .io import image_file_to_data_url
-from .transforms import (
+from ..io import image_file_to_data_url
+from ..transforms import (
     apply_similarity_transform,
     fit_similarity_transform,
     invert_similarity_transform,
     serialize_transform,
 )
 
-_PACKAGE_DIR = Path(__file__).resolve().parent
+_PACKAGE_DIR = Path(__file__).resolve().parent.parent
 
 
 class MotilityPaintingAligner(anywidget.AnyWidget):
@@ -28,8 +28,8 @@ class MotilityPaintingAligner(anywidget.AnyWidget):
     Painting image.
     """
 
-    _esm = _PACKAGE_DIR / "bundled" / "widget.js"
-    _css = _PACKAGE_DIR / "style.css"
+    _esm = _PACKAGE_DIR / "static" / "aligner.js"
+    _css = _PACKAGE_DIR / "static" / "aligner.css"
 
     motility_image_url = traitlets.Unicode("").tag(sync=True)
     cell_painting_image_urls = traitlets.List(traitlets.Unicode(), default_value=[]).tag(sync=True)

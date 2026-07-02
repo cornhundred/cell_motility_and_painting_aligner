@@ -305,7 +305,7 @@ function makeDeck(model, container, side) {
 }
 
 function render({model, el}) {
-  el.classList.add('cell-motility-painting-aligner')
+  el.classList.add('motility-painting')
   el.style.width = `${model.get('width') || 1100}px`
 
   const toolbar = document.createElement('div')

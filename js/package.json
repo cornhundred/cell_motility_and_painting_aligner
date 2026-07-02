@@ -1,9 +1,11 @@
 {
-  "name": "cell-motility-painting-aligner-js",
+  "name": "motility-painting-js",
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "esbuild aligner_widget.mjs --bundle --format=esm --outfile=../src/cell_motility_painting_aligner/bundled/widget.js --platform=browser --target=es2022 --legal-comments=none --define:define.amd=false"
+    "build": "npm run build:aligner && npm run build:scrubber",
+    "build:aligner": "esbuild aligner_widget.mjs --bundle --format=esm --outfile=../src/motility_painting/static/aligner.js --platform=browser --target=es2022 --legal-comments=none --define:define.amd=false",
+    "build:scrubber": "esbuild scrubber_widget.mjs --bundle --format=esm --outfile=../src/motility_painting/static/scrubber.js --platform=browser --target=es2022 --legal-comments=none --define:define.amd=false"
   },
   "dependencies": {
     "@deck.gl-community/layers": "9.2.8",

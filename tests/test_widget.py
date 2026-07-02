@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from cell_motility_painting_aligner import MotilityPaintingAligner
+from motility_painting import MotilityPaintingAligner
 
 
 def test_widget_fit_updates_forward_and_inverse_transforms():

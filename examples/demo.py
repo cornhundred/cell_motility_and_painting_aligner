@@ -1,4 +1,4 @@
-from cell_motility_painting_aligner import MotilityPaintingAligner
+from motility_painting import MotilityPaintingAligner
 
 # Replace image URLs, sizes, and centroids with experiment data.
 w = MotilityPaintingAligner.from_urls(

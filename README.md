@@ -1,4 +1,4 @@
-# cell-motility-painting-aligner
+# motility-painting
 
 A pip-installable Jupyter `anywidget` for landmark-based alignment of one
 motility image against many larger Cell Painting images.
@@ -13,13 +13,13 @@ compiled widget module inside the wheel.
 To install the widget directly from GitHub:
 
 ```bash
-pip install "cell-motility-painting-aligner @ git+https://github.com/cornhundred/cell_motility_and_painting_aligner.git"
+pip install "motility-painting @ git+https://github.com/cornhundred/cell_motility_and_painting_aligner.git"
 ```
 
 For private-repo or SSH-based access:
 
 ```bash
-pip install "cell-motility-painting-aligner @ git+ssh://git@github.com/cornhundred/cell_motility_and_painting_aligner.git"
+pip install "motility-painting @ git+ssh://git@github.com/cornhundred/cell_motility_and_painting_aligner.git"
 ```
 
 The repo includes the bundled JavaScript widget asset, so users installing from
@@ -56,7 +56,7 @@ roadmap. The starter notebook is
 ## Notebook usage
 
 ```python
-from cell_motility_painting_aligner import MotilityPaintingAligner
+from motility_painting import MotilityPaintingAligner
 
 motility_centroids = [
     {"id": "mot_1", "x": 120, "y": 90},

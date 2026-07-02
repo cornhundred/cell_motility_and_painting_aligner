@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from cell_motility_painting_aligner import (
+from motility_painting import (
     apply_similarity_transform,
     fit_similarity_transform,
     invert_similarity_transform,
