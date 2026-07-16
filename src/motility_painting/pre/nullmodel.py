@@ -208,7 +208,54 @@ def turning_angle_autocorrelation(
     lags by construction (steps are drawn independently from the pool, so
     consecutive null steps have no directional relationship).
 
-    Returns one row per lag: ``lag, real_mean, null_mean, null_std``.
+    Returns one row per lag: ``lag, real_mean, null_mean, null_std``. For a
+    formal per-lag significance test (paired, real vs. each trajectory's own
+    null mean), see :func:`turning_angle_persistence_test`.
+    """
+    per_traj = turning_angle_persistence_test(
+        traj,
+        traj_col=traj_col,
+        x_col=x_col,
+        y_col=y_col,
+        frame_col=frame_col,
+        min_frames=min_frames,
+        max_lag=max_lag,
+        n_shuffles=n_shuffles,
+        seed=seed,
+    )
+    rows = []
+    for lag, g in per_traj.groupby("lag"):
+        rows.append(
+            {
+                "lag": lag,
+                "real_mean": float(g["real"].mean()),
+                "null_mean": float(g["null_mean"].mean()),
+                "null_std": float(g["null_mean"].std()),
+            }
+        )
+    return pd.DataFrame(rows).sort_values("lag").reset_index(drop=True)
+
+
+def turning_angle_persistence_test(
+    traj: pd.DataFrame,
+    *,
+    traj_col: str = "trajectory_id",
+    x_col: str = "centroid_x",
+    y_col: str = "centroid_y",
+    frame_col: str = "frame_index",
+    min_frames: int = 10,
+    max_lag: int = 5,
+    n_shuffles: int = 200,
+    seed: int = 0,
+) -> pd.DataFrame:
+    """Per-trajectory, per-lag heading autocorrelation: real value and this trajectory's own null mean.
+
+    This is the per-trajectory data behind :func:`turning_angle_autocorrelation`'s
+    population summary, kept explicit (one row per ``trajectory_id`` x ``lag``)
+    so a paired significance test can be run with
+    :func:`turning_angle_significance`.
+
+    Returns ``trajectory_id, lag, real, null_mean``.
     """
     rng = np.random.default_rng(seed)
     pool = pool_all_steps(traj, traj_col=traj_col, x_col=x_col, y_col=y_col, frame_col=frame_col)
@@ -219,17 +266,11 @@ def turning_angle_autocorrelation(
         headings = np.arctan2(steps[:, 1], steps[:, 0])
         return float(np.mean(np.cos(headings[lag:] - headings[:-lag])))
 
-    real_by_lag: dict[int, list[float]] = {lag: [] for lag in range(1, max_lag + 1)}
-    null_by_lag: dict[int, list[float]] = {lag: [] for lag in range(1, max_lag + 1)}
-
-    for _, g in traj.groupby(traj_col):
+    rows = []
+    for tid, g in traj.groupby(traj_col):
         if len(g) < min_frames:
             continue
         steps = _steps_xy(g, x_col, y_col, frame_col)
-        for lag in range(1, max_lag + 1):
-            v = _heading_autocorr(steps, lag)
-            if not np.isnan(v):
-                real_by_lag[lag].append(v)
 
         null_vals: dict[int, list[float]] = {lag: [] for lag in range(1, max_lag + 1)}
         for _ in range(n_shuffles):
@@ -238,18 +279,39 @@ def turning_angle_autocorrelation(
                 v = _heading_autocorr(random_steps, lag)
                 if not np.isnan(v):
                     null_vals[lag].append(v)
-        for lag in range(1, max_lag + 1):
-            if null_vals[lag]:
-                null_by_lag[lag].append(float(np.mean(null_vals[lag])))
 
+        for lag in range(1, max_lag + 1):
+            real_v = _heading_autocorr(steps, lag)
+            if np.isnan(real_v) or not null_vals[lag]:
+                continue
+            rows.append(
+                {
+                    traj_col: tid,
+                    "lag": lag,
+                    "real": real_v,
+                    "null_mean": float(np.mean(null_vals[lag])),
+                }
+            )
+    return pd.DataFrame(rows)
+
+
+def turning_angle_significance(per_trajectory: pd.DataFrame) -> pd.DataFrame:
+    """Per-lag Wilcoxon signed-rank test: real heading autocorrelation vs. each trajectory's own null mean.
+
+    ``per_trajectory`` is the output of :func:`turning_angle_persistence_test`.
+    Returns one row per lag: ``lag, n, statistic, p_value, median_diff``.
+    """
     rows = []
-    for lag in range(1, max_lag + 1):
+    for lag, g in per_trajectory.groupby("lag"):
+        diff = g["real"] - g["null_mean"]
+        stat, p = stats.wilcoxon(diff, alternative="greater")
         rows.append(
             {
                 "lag": lag,
-                "real_mean": float(np.mean(real_by_lag[lag])) if real_by_lag[lag] else np.nan,
-                "null_mean": float(np.mean(null_by_lag[lag])) if null_by_lag[lag] else np.nan,
-                "null_std": float(np.std(null_by_lag[lag])) if null_by_lag[lag] else np.nan,
+                "n": int(len(diff)),
+                "statistic": float(stat),
+                "p_value": float(p),
+                "median_diff": float(diff.median()),
             }
         )
-    return pd.DataFrame(rows)
+    return pd.DataFrame(rows).sort_values("lag").reset_index(drop=True)

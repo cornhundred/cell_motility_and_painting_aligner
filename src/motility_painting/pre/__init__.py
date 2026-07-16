@@ -32,6 +32,8 @@ from .nullmodel import (
     resample_from_pool,
     stepwise_turning_angles,
     turning_angle_autocorrelation,
+    turning_angle_persistence_test,
+    turning_angle_significance,
 )
 from .spatial import (
     all_frames_collisions,
@@ -76,6 +78,8 @@ __all__ = [
     "resample_from_pool",
     "stepwise_turning_angles",
     "turning_angle_autocorrelation",
+    "turning_angle_persistence_test",
+    "turning_angle_significance",
     "all_frames_collisions",
     "all_frames_local_density",
     "frame_collisions",
