@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Experimental overview — motility_painting</title>
+<meta name="description" content="How the live-cell motility + Cell Painting experiment was run and analyzed.">
+
+<style>
+  :root {
+    --fg: #1c1f24; --fg-muted: #5b6470; --bg: #fafbfc; --bg-card: #ffffff;
+    --border: #e3e6ea; --accent: #0072B2; --accent-hover: #005383;
+    --code-bg: #f1f3f5; --shadow: 0 1px 2px rgba(15, 22, 36, 0.04), 0 4px 12px rgba(15, 22, 36, 0.04);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --fg: #e8ecf1; --fg-muted: #9aa3b1; --bg: #14171c; --bg-card: #1c2027;
+      --border: #2a2f38; --accent: #56B4E9; --accent-hover: #88c9ee; --code-bg: #20242c;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 6px 18px rgba(0, 0, 0, 0.3);
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--fg);
+    font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  main { max-width: 900px; margin: 0 auto; padding: 48px 32px 96px; }
+  header { margin-bottom: 24px; }
+  h1 { font-size: 2rem; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 8px; }
+  .tagline { color: var(--fg-muted); margin: 0 0 24px; font-size: 1.1rem; }
+  h2 {
+    font-size: 1.3rem; font-weight: 650; letter-spacing: -0.01em;
+    margin: 48px 0 14px; padding-bottom: 6px; border-bottom: 1px solid var(--border);
+  }
+  h3 { font-size: 1rem; font-weight: 650; margin: 24px 0 8px; }
+  p, li { margin: 0 0 12px; }
+  ol, ul { padding-left: 22px; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { color: var(--accent-hover); text-decoration: underline; }
+  code {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, monospace;
+    background: var(--code-bg); padding: 1px 5px; border-radius: 4px; font-size: 0.92em;
+  }
+  table { border-collapse: collapse; width: 100%; margin: 8px 0 20px; font-size: 0.92rem; }
+  th, td { text-align: left; padding: 7px 12px; border-bottom: 1px solid var(--border); }
+  th { color: var(--fg-muted); font-weight: 600; }
+  .callout {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px 18px; margin: 16px 0; box-shadow: var(--shadow); font-size: 0.94rem;
+  }
+  .steps { counter-reset: step; list-style: none; padding-left: 0; }
+  .steps li {
+    counter-increment: step; position: relative; padding-left: 38px; margin-bottom: 16px;
+  }
+  .steps li::before {
+    content: counter(step); position: absolute; left: 0; top: -1px;
+    width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: white;
+    font-size: 0.85rem; font-weight: 650; display: flex; align-items: center; justify-content: center;
+  }
+  footer { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--border); color: var(--fg-muted); font-size: 0.88rem; }
+  .back-link { font-size: 0.9rem; }
+</style>
+</head>
+
+<body>
+<main>
+
+<header>
+  <p class="back-link"><a href="index.html">&larr; back</a></p>
+  <h1>Experimental overview</h1>
+  <p class="tagline">How the underlying experiment was run, and how it was turned into the analyses on this site.</p>
+</header>
+
+<section>
+  <h2>The experiment</h2>
+  <p>
+    One field of live cells was imaged by brightfield time-lapse (live-cell imaging, "LCI") for
+    <strong>65 timepoints</strong> (<code>Time00000</code>&ndash;<code>Time00064</code>) at
+    <strong>3.25 µm/px</strong> (6.5 µm camera pixel through a 2.0x objective). Partway through
+    the movie, the sample was taken off the scope, treated with fixative, and later returned for
+    Cell Painting imaging.
+  </p>
+  <div class="callout">
+    <strong>Fixation boundary: Time59 &rarr; Time60.</strong> This was measured empirically, not
+    assumed — total detected-cell count drops from 4,763 to 3,898 with a ~8px global shift at
+    exactly that transition. Fixation isn't instantaneous: the slide leaves the scope, the
+    fixative acts over roughly a few minutes, and the slide goes back on — so this single step
+    reflects a real elapsed-time gap and a mechanical repositioning, not just one more frame of
+    normal motion. Analyses of live motility are restricted to
+    <code>frame_index &lt;= 59</code>; the post-fixation frames (60&ndash;64) are used only to
+    locate the terminal, fixed cell positions.
+  </div>
+  <p>
+    After fixation, the same field was stained and imaged for <strong>Cell Painting</strong>
+    across <strong>110 fields of view</strong> (<code>.ims</code> files) at a higher resolution,
+    <strong>0.3015 µm/px</strong> — roughly 10x finer than the LCI pixel scale. Six channels were
+    acquired per FOV:
+  </p>
+  <table>
+    <tr><th>Channel</th><th>Stain</th><th>Target</th></tr>
+    <tr><td>0</td><td>405</td><td>DNA</td></tr>
+    <tr><td>1</td><td>637</td><td>Mitochondria</td></tr>
+    <tr><td>2</td><td>561</td><td>WGA / AGP (actin, Golgi, plasma membrane)</td></tr>
+    <tr><td>3</td><td>514</td><td>SYTO14 (RNA)</td></tr>
+    <tr><td>4</td><td>488</td><td>ConA (ER)</td></tr>
+    <tr><td>5</td><td>&mdash;</td><td>Combo channel, not used in analysis</td></tr>
+  </table>
+  <p>This is the standard 5-stain Cell Painting panel (DNA / RNA / AGP / Mito / ER).</p>
+</section>
+
+<section>
+  <h2>Turning images into cell tables</h2>
+  <ol class="steps">
+    <li><strong>LCI segmentation.</strong> Every one of the 65 brightfield frames was segmented
+      with Cellpose into per-cell masks, converted to polygons (one GeoDataFrame per frame,
+      ~4,000&ndash;4,700 cells/frame) with a centroid per cell.</li>
+    <li><strong>LCI tracking.</strong> Cells were linked frame-to-frame into motility
+      trajectories: first by largest polygon overlap (one-to-one), then a shift-compensated
+      nearest-centroid fallback for cells that moved without overlapping their previous selves,
+      then a short gap-bridging pass for single-frame segmentation dropouts. ~12,000
+      trajectories result, median length 8 frames, ~29% reaching the final frame.</li>
+    <li><strong>Cell Painting segmentation &amp; features.</strong> CellProfiler segmented
+      nuclei/cells in each of the 110 FOVs and measured ~499 features per cell (shape, intensity,
+      texture, radial intensity distribution, granularity) across the 5 real stains.</li>
+    <li><strong>Alignment.</strong> For each CP FOV, a similarity transform (scale + rotation/
+      reflection + translation) was fit mapping that FOV's local pixel coordinates into the LCI
+      final-frame (Time64) coordinate space, via an interactive landmark-matching widget.</li>
+    <li><strong>Linking.</strong> Every CP cell was matched to its nearest motility trajectory
+      endpoint in that shared coordinate space (median match distance 2.5 px, 15 px threshold)
+      &mdash; <strong>2,130 linked 1:1 pairs</strong>, ~80% with usable live-motility metrics
+      (the rest reach the final frame but have no earlier live-frame track).</li>
+    <li><strong>Motility metrics.</strong> For each trajectory, net displacement, path length,
+      straightness, mean per-frame speed, and heading were computed over the live frames only
+      (<code>&lt;= Time59</code>), explicitly excluding the fixation-transition frame.</li>
+  </ol>
+</section>
+
+<section>
+  <h2>What's on this site</h2>
+  <p>
+    The three "live, in your browser" pages are direct views of that pipeline's output: the
+    <strong>motility scrubber</strong> plays back all 65 frames with tracked-cell paths; the
+    <strong>linked view</strong> shows the final-frame motility panel side-by-side with the
+    stitched Cell Painting mosaic, synced and click-to-highlight by the shared
+    <code>link_id</code>; the <strong>clustergram</strong> page visualizes the ~499-dimensional
+    CP feature space (via <a href="https://github.com/broadinstitute/celldega">Celldega</a>) and
+    its correlation with motility.
+  </p>
+  <p>
+    The five <strong>NF</strong> pages go deeper on specific questions: is motion actually more
+    directed than a random walk built from real observed steps (NF01); does live shape dynamics
+    predict speed better than any fixed Cell Painting feature (NF02); does local crowding slow
+    cells down, and do neighbors move in correlated directions (NF03); which Cell Painting &harr;
+    motility correlations actually survive multiple-testing correction (NF04); and how often do
+    cells physically touch, and does that redirect them (NF05).
+  </p>
+</section>
+
+<footer>
+  <p><a href="index.html">&larr; back to all results</a></p>
+</footer>
+
+</main>
+</body>
+</html>

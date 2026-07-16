@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>motility_painting — live-cell motility × Cell Painting analysis</title>
+<meta name="description" content="Linked deck.gl + Celldega visualizations of live-cell-imaging motility trajectories and Cell Painting morphology, aligned into one coordinate space.">
+
+<style>
+  :root {
+    --fg: #1c1f24;
+    --fg-muted: #5b6470;
+    --bg: #fafbfc;
+    --bg-card: #ffffff;
+    --border: #e3e6ea;
+    --accent: #0072B2;
+    --accent-hover: #005383;
+    --code-bg: #f1f3f5;
+    --shadow: 0 1px 2px rgba(15, 22, 36, 0.04), 0 4px 12px rgba(15, 22, 36, 0.04);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --fg: #e8ecf1;
+      --fg-muted: #9aa3b1;
+      --bg: #14171c;
+      --bg-card: #1c2027;
+      --border: #2a2f38;
+      --accent: #56B4E9;
+      --accent-hover: #88c9ee;
+      --code-bg: #20242c;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 6px 18px rgba(0, 0, 0, 0.3);
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  main { max-width: 1300px; margin: 0 auto; padding: 48px 32px 96px; }
+  header { margin-bottom: 24px; }
+  h1 { font-size: 2.25rem; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 8px; }
+  .tagline { color: var(--fg-muted); margin: 0 0 24px; font-size: 1.125rem; }
+  h2 {
+    font-size: 1.4rem; font-weight: 650; letter-spacing: -0.01em;
+    margin: 56px 0 16px; padding-bottom: 6px; border-bottom: 1px solid var(--border);
+  }
+  h3 { font-size: 1.05rem; font-weight: 650; margin: 28px 0 10px; }
+  p { margin: 0 0 14px; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { color: var(--accent-hover); text-decoration: underline; }
+  code {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, monospace;
+    background: var(--code-bg); padding: 1px 5px; border-radius: 4px; font-size: 0.92em;
+  }
+  pre {
+    background: var(--code-bg); padding: 14px 16px; border-radius: 8px; overflow-x: auto;
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, monospace;
+    font-size: 0.88rem; line-height: 1.5; margin: 14px 0 18px;
+  }
+
+  .pill-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 8px; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px;
+    border: 1px solid var(--border); border-radius: 999px; font-size: 0.82rem;
+    color: var(--fg-muted); background: var(--bg-card);
+  }
+
+  .embed {
+    margin: 24px 0 8px; border: 1px solid var(--border); border-radius: 12px;
+    background: var(--bg-card); box-shadow: var(--shadow); overflow: hidden;
+  }
+  .embed-bar {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    flex-wrap: wrap; padding: 10px 14px; border-bottom: 1px solid var(--border);
+    font-size: 0.88rem; color: var(--fg-muted);
+    background: linear-gradient(180deg, transparent, rgba(0,0,0,0.015));
+  }
+  .embed-bar strong { color: var(--fg); font-weight: 600; }
+  .embed-bar label { color: var(--fg-muted); margin-right: 8px; }
+  .embed-bar select {
+    font: inherit; padding: 5px 10px; border-radius: 6px; border: 1px solid var(--border);
+    background: var(--bg-card); color: var(--fg); cursor: pointer;
+  }
+  .embed-bar select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .embed-bar .openlink { white-space: nowrap; }
+  .embed iframe { display: block; width: 100%; height: 760px; border: 0; background: var(--bg-card); }
+
+  .card-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px; margin: 24px 0 8px;
+  }
+  .result-card {
+    display: block; padding: 18px 20px; border: 1px solid var(--border); border-radius: 12px;
+    background: var(--bg-card); color: inherit; text-decoration: none;
+    transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+  }
+  .result-card:hover { text-decoration: none; transform: translateY(-2px); border-color: var(--accent); box-shadow: var(--shadow); }
+  .result-card .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 8px; vertical-align: middle; }
+  .result-card .name { font-weight: 650; font-size: 1.02rem; letter-spacing: -0.005em; }
+  .result-card .summary { color: var(--fg-muted); font-size: 0.86rem; margin-top: 8px; line-height: 1.4; }
+
+  footer { margin-top: 64px; padding-top: 24px; border-top: 1px solid var(--border); color: var(--fg-muted); font-size: 0.88rem; }
+</style>
+</head>
+
+<body>
+<main>
+
+<header>
+  <h1>motility_painting</h1>
+  <p class="tagline">
+    Linking live-cell-imaging (LCI) motility trajectories to Cell Painting (CP) single-cell
+    morphology, via <a href="https://deck.gl/">deck.gl</a> +
+    <a href="https://github.com/broadinstitute/celldega">Celldega</a> widgets.
+  </p>
+  <div class="pill-row">
+    <span class="pill">Python · Jupyter · anywidget</span>
+    <span class="pill">deck.gl · WebGL</span>
+    <span class="pill">Celldega clustergram</span>
+    <span class="pill">Spearman + BH-FDR</span>
+    <a class="pill" href="overview.html" style="color: var(--accent); border-color: var(--accent);">Experimental overview &rarr;</a>
+  </div>
+</header>
+
+<section>
+  <h2>What is this?</h2>
+  <p>
+    ~4,700 cells were imaged live for 65 timepoints (LCI), tracked into motility trajectories,
+    then fixed and imaged again with Cell Painting (CP). A per-FOV similarity-transform alignment
+    links each CP cell to its own motility trajectory (shared <code>link_id</code>), so a cell's
+    fixed morphology can be compared directly to how it moved while alive. This site is a
+    browsable, kernel-free view of that pipeline's widgets and findings — no notebook required.
+  </p>
+</section>
+
+<section>
+  <h2>Live, in your browser</h2>
+  <p>
+    Pick a view. Each one is a self-contained widget with no kernel attached — all interactions
+    (scrub/play, hover, click-to-link, pan/zoom) run purely in the browser.
+  </p>
+  <div class="embed">
+    <div class="embed-bar">
+      <span>
+        <label for="view-select">View:</label>
+        <select id="view-select" aria-label="Choose a view to display">
+          <option value="scrubber.html">Motility scrubber</option>
+          <option value="linked_view.html">Linked view (motility ↔ Cell Painting)</option>
+          <option value="clustergram.html">Clustergram &amp; correlations</option>
+        </select>
+      </span>
+      <span class="openlink">
+        <a id="open-widget" href="scrubber.html" target="_blank" rel="noopener">open standalone ↗</a>
+      </span>
+    </div>
+    <iframe id="view-frame" src="scrubber.html"
+            title="motility_painting visualization"
+            loading="lazy" allow="fullscreen"></iframe>
+  </div>
+  <p style="font-size: 0.88rem; color: var(--fg-muted); margin-top: 10px;">
+    The dropdown swaps between the three widget pages. Each is built by
+    <code>site/build_site.py</code>, exporting the already-executed notebook with nbconvert's
+    <code>HTMLExporter</code> (kept off <code>ipywidgets.embed.embed_minimal_html</code>, which
+    doesn't render anywidget's ESM-based widgets correctly).
+  </p>
+</section>
+
+<script>
+  (function () {
+    var sel = document.getElementById('view-select');
+    var frame = document.getElementById('view-frame');
+    var openWidget = document.getElementById('open-widget');
+    sel.addEventListener('change', function () {
+      var url = sel.value;
+      frame.src = url;
+      openWidget.href = url;
+    });
+  })();
+</script>
+
+<section>
+  <h2>All results</h2>
+  <div class="card-grid">
+    <a class="result-card" href="scrubber.html">
+      <div><span class="swatch" style="background:#0072B2"></span><span class="name">Motility scrubber</span></div>
+      <div class="summary">Scrub/play through all 65 LCI frames with tracked-cell paths; every other detected cell shown as a background dot.</div>
+    </a>
+    <a class="result-card" href="linked_view.html">
+      <div><span class="swatch" style="background:#0072B2"></span><span class="name">Linked view (motility ↔ CP)</span></div>
+      <div class="summary">Synced final-frame motility | stitched Cell Painting panels; matched cells share a link_id, click to highlight a pair.</div>
+    </a>
+    <a class="result-card" href="clustergram.html">
+      <div><span class="swatch" style="background:#0072B2"></span><span class="name">Clustergram &amp; correlations</span></div>
+      <div class="summary">Celldega clustergram of CP features (colored by motility tertile) + the CP↔motility Spearman correlation heatmap.</div>
+    </a>
+    <a class="result-card" href="nf01_displacement.html">
+      <div><span class="swatch" style="background:#D55E00"></span><span class="name">NF01 · Displacement null model</span></div>
+      <div class="summary">No population-level excess net displacement vs. a real-steps-only null (p=0.40) — but short-range turning-angle persistence is real.</div>
+    </a>
+    <a class="result-card" href="nf02_morphology.html">
+      <div><span class="swatch" style="background:#D55E00"></span><span class="name">NF02 · Morphology over time</span></div>
+      <div class="summary">Shape variability correlates with speed far more strongly (ρ≈0.6) than any fixed Cell Painting feature (ρ≈0.15).</div>
+    </a>
+    <a class="result-card" href="nf03_crowding.html">
+      <div><span class="swatch" style="background:#D55E00"></span><span class="name">NF03 · Crowding &amp; collective motion</span></div>
+      <div class="summary">Crowded cells move measurably slower (ρ=-0.091); weak local coordination in heading between neighbors.</div>
+    </a>
+    <a class="result-card" href="nf04_bh_correction.html">
+      <div><span class="swatch" style="background:#D55E00"></span><span class="name">NF04 · Multiple-testing correction</span></div>
+      <div class="summary">Real BH-FDR code, all 87 surviving CP↔motility associations browsable in one table + overview plot.</div>
+    </a>
+    <a class="result-card" href="nf05_collisions.html">
+      <div><span class="swatch" style="background:#D55E00"></span><span class="name">NF05 · Collisions ("bumper cars")</span></div>
+      <div class="summary">96,408 genuine polygon-contact collisions; weak contact-inhibition-of-locomotion signal.</div>
+    </a>
+  </div>
+</section>
+
+<footer>
+  <p>
+    Built on <a href="https://anywidget.dev/">anywidget</a>,
+    <a href="https://deck.gl/">deck.gl</a>, and
+    <a href="https://github.com/broadinstitute/celldega">Celldega</a>.
+    &nbsp;·&nbsp;
+    <a href="https://github.com/cornhundred/cell_motility_and_painting_aligner">Source</a>
+  </p>
+</footer>
+
+</main>
+</body>
+</html>
