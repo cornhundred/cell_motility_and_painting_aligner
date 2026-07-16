@@ -7796,6 +7796,10 @@ slower, more crowded regions. On the CP side (2,130 linked cells), collision cou
 most with <strong>edge-intensity</strong> features (<code>Intensity_Mean/MaxIntensityEdge_OrigActin_Golgi_Membrane</code>,
 ρ≈0.15-0.16) — plausibly the same irregular-boundary signature showing up in the fixed CP
 image.</p>
+<p><strong>Caveat:</strong> collision detection depends on segmentation boundary precision -- boundary jitter
+(see NF01's noise-floor check) could create spurious touching/separating events between frames
+without any real change in physical contact, inflating or deflating collision counts
+independent of true "bumper cars" behavior. Not yet quantified here.</p>
 </div>
 </div>
 </div>

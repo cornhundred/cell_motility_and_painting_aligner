@@ -64,6 +64,11 @@ def export_page(source_name: str, slug: str) -> int:
     exporter.exclude_input_prompt = True
     exporter.exclude_output_prompt = True
     exporter.embed_images = True
+    # nbconvert's own default (html_manager_semver_range="*") fetches whatever the LATEST
+    # @jupyter-widgets/html-manager is at page-load time -- incompatible with ipywidgets 8.x's
+    # widget-state schema (newer Ajv rejects it: "strict mode: use allowUnionTypes"). Pin to the
+    # same range ipywidgets.embed.embed_minimal_html already uses internally and is tested against.
+    exporter.html_manager_semver_range = "^1.0.1"
 
     body, _ = exporter.from_notebook_node(nb)
     out_path = SITE_DIR / f"{slug}.html"

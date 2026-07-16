@@ -7869,6 +7869,12 @@ consistently positive and decays with distance (mean cos-similarity 0.090 at 0-5
 ~0.003-0.005 beyond 300 µm, n up to 2.5M pairs at the largest bin) — weak but real local
 coordination in migration direction, on top of (and distinct from) the crowding-slows-speed
 effect above.</p>
+<p><strong>Caveat:</strong> this notebook's step-level signal-to-noise ratio is low (see NF01's caveats section
+-- post-fixation "should be motionless" steps measure ~95% of the live median step size), and
+the tracker's distance-fallback/gap-bridging links are more likely to mislink in dense regions.
+If mislinking is more common in crowded areas and produces artificially smaller apparent
+displacement, that alone could partly explain "crowded cells look slower" without real biology
+behind it. Not yet ruled out -- see NF01 for the proposed overlap-only-vs-fallback comparison.</p>
 </div>
 </div>
 </div>
