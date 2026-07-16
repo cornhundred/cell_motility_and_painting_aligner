@@ -119,14 +119,23 @@ def export_widget_page(source_name: str, slug: str, title: str) -> int:
     if state_bundle is None:
         raise RuntimeError(f"{source_name} has no saved widget state -- execute it with a live kernel first")
 
-    any_models = [m["state"] for m in state_bundle["state"].values() if m.get("model_name") == "AnyModel"]
+    any_models = [m for m in state_bundle["state"].values() if m.get("model_name") == "AnyModel"]
     if len(any_models) != 1:
         raise RuntimeError(f"expected exactly one AnyModel widget in {source_name}, found {len(any_models)}")
-    model_state = any_models[0]
+    any_model = any_models[0]
+    model_state = any_model["state"]
 
     esm = model_state["_esm"]
     css = model_state.get("_css") or ""
     widget_state = {k: v for k, v in model_state.items() if k not in _BOOKKEEPING_KEYS}
+
+    # Traits too large for plain JSON (e.g. celldega's parquet-encoded dataframes) travel as
+    # separate binary buffers rather than inline state -- mark them so afm_host.js's
+    # hydrateBuffers can turn them back into a DataView before the widget reads them.
+    for buf in any_model.get("buffers", []):
+        if len(buf["path"]) != 1:
+            raise RuntimeError(f"{source_name}: buffer path {buf['path']!r} isn't a single top-level key")
+        widget_state[buf["path"][0]] = {"__buffer_b64__": buf["data"]}
 
     (SITE_DIR / f"{slug}_widget.mjs").write_text(esm, encoding="utf-8")
     (SITE_DIR / f"{slug}_widget.css").write_text(css, encoding="utf-8")

@@ -57,6 +57,26 @@ export function makeStaticModel(initialState) {
   };
 }
 
+// ipywidgets/anywidget traits too large for plain JSON (e.g. a parquet-encoded
+// dataframe) travel as separate binary "buffers" rather than inline state --
+// real hosts reinsert them as a DataView at the trait's path before the
+// widget ever sees them (this is exactly the shape @jupyter-widgets/base
+// uses). build_site.py's export_widget_page marks these in `state` as
+// `{__buffer_b64__: "<base64>"}`; hydrateBuffers turns them into real
+// DataViews so `model.get("mat_parquet")` etc. return what the widget expects.
+function hydrateBuffers(state) {
+  for (const key of Object.keys(state)) {
+    const value = state[key];
+    if (value && typeof value === "object" && typeof value.__buffer_b64__ === "string") {
+      const binary = atob(value.__buffer_b64__);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      state[key] = new DataView(bytes.buffer);
+    }
+  }
+  return state;
+}
+
 /**
  * Render an AFM module into `el`.
  * @param {{esmUrl: string, cssUrl?: string, state: Record<string, any>, el: HTMLElement}} opts
@@ -73,7 +93,7 @@ export async function renderAFM({ esmUrl, cssUrl, state, el }) {
   let widget = mod.default;
   if (typeof widget === "function") widget = await widget();
 
-  const model = makeStaticModel(state);
+  const model = makeStaticModel(hydrateBuffers(state));
   const controller = new AbortController();
 
   if (widget.initialize) {
