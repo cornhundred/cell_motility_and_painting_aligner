@@ -1,10 +1,16 @@
 # Site
 
 Static, kernel-free HTML export of the project's widgets and analysis notebooks — browse the
-results without opening Jupyter. Built the same way as
-[bike_network_traffic](https://cornhundred.github.io/bike_network_traffic/): nbconvert's
-`HTMLExporter` on already-executed notebooks (not `ipywidgets.embed.embed_minimal_html`, which
-doesn't render anywidget's ESM-based widgets correctly).
+results without opening Jupyter, inspired by
+[bike_network_traffic](https://cornhundred.github.io/bike_network_traffic/).
+
+Two export paths: the 5 **NF** analysis pages go through nbconvert's `HTMLExporter` (plain
+matplotlib notebooks, no widgets). The 3 **widget** pages (scrubber, linked view, clustergram) go
+through a custom static host (`vendor/afm_host.js`) implementing anywidget's own
+[AFM spec](https://anywidget.dev/en/afm) directly — classic ipywidgets embedding
+(`ipywidgets.embed.embed_minimal_html`, and nbconvert's own widget support) cannot load anywidget
+widgets at all, since anywidget ships pure ESM with no AMD/UMD build. See
+[`engineering.html`](engineering.html) for the full story and gotchas.
 
 ## View it locally
 

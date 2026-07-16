@@ -123,6 +123,7 @@
     <span class="pill">Celldega clustergram</span>
     <span class="pill">Spearman + BH-FDR</span>
     <a class="pill" href="overview.html" style="color: var(--accent); border-color: var(--accent);">Experimental overview &rarr;</a>
+    <a class="pill" href="engineering.html" style="color: var(--accent); border-color: var(--accent);">Engineering notes &rarr;</a>
   </div>
 </header>
 
@@ -162,10 +163,11 @@
             loading="lazy" allow="fullscreen"></iframe>
   </div>
   <p style="font-size: 0.88rem; color: var(--fg-muted); margin-top: 10px;">
-    The dropdown swaps between the three widget pages. Each is built by
-    <code>site/build_site.py</code>, exporting the already-executed notebook with nbconvert's
-    <code>HTMLExporter</code> (kept off <code>ipywidgets.embed.embed_minimal_html</code>, which
-    doesn't render anywidget's ESM-based widgets correctly).
+    The dropdown swaps between the three widget pages. Each is fully self-contained (no CDN calls
+    at page load) via a small custom static host implementing anywidget's own
+    <a href="https://anywidget.dev/en/afm">AFM spec</a> — see the
+    <a href="engineering.html">engineering notes</a> for why the classic ipywidgets embedding path
+    doesn't work here.
   </p>
 </section>
 

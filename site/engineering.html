@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Engineering notes — motility_painting site</title>
+
+<style>
+  :root {
+    --fg: #1c1f24; --fg-muted: #5b6470; --bg: #fafbfc; --bg-card: #ffffff;
+    --border: #e3e6ea; --accent: #0072B2; --accent-hover: #005383;
+    --code-bg: #f1f3f5; --shadow: 0 1px 2px rgba(15, 22, 36, 0.04), 0 4px 12px rgba(15, 22, 36, 0.04);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --fg: #e8ecf1; --fg-muted: #9aa3b1; --bg: #14171c; --bg-card: #1c2027;
+      --border: #2a2f38; --accent: #56B4E9; --accent-hover: #88c9ee; --code-bg: #20242c;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 6px 18px rgba(0, 0, 0, 0.3);
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--fg);
+    font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  main { max-width: 900px; margin: 0 auto; padding: 48px 32px 96px; }
+  h1 { font-size: 2rem; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 8px; }
+  .tagline { color: var(--fg-muted); margin: 0 0 24px; font-size: 1.1rem; }
+  h2 {
+    font-size: 1.3rem; font-weight: 650; letter-spacing: -0.01em;
+    margin: 44px 0 14px; padding-bottom: 6px; border-bottom: 1px solid var(--border);
+  }
+  h3 { font-size: 1rem; font-weight: 650; margin: 22px 0 8px; }
+  p, li { margin: 0 0 12px; }
+  ul { padding-left: 22px; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { color: var(--accent-hover); text-decoration: underline; }
+  code {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, monospace;
+    background: var(--code-bg); padding: 1px 5px; border-radius: 4px; font-size: 0.92em;
+  }
+  pre {
+    background: var(--code-bg); padding: 14px 16px; border-radius: 8px; overflow-x: auto;
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, monospace;
+    font-size: 0.85rem; line-height: 1.5; margin: 10px 0 18px;
+  }
+  .callout {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px 18px; margin: 16px 0; box-shadow: var(--shadow); font-size: 0.94rem;
+  }
+  .back-link { font-size: 0.9rem; }
+</style>
+</head>
+
+<body>
+<main>
+
+<p class="back-link"><a href="index.html">&larr; back</a></p>
+<h1>Engineering notes</h1>
+<p class="tagline">How the widget pages on this site are actually built, and the dead end that led there.</p>
+
+<h2>How a widget's front-end code gets into a static page</h2>
+<p>
+  <code>TrajectoryScrubber</code>, <code>MotilityCellPaintingView</code>, and Celldega's
+  <code>Clustergram</code> are all <a href="https://anywidget.dev/">anywidget</a> widgets: each
+  one declares <code>_esm = Path(...)/"static"/"foo.js"</code>, and anywidget reads that file's
+  <strong>text content</strong> into the widget's serialized state at construction time — the
+  actual JS source (our bundled deck.gl code, ~2.2MB per widget) travels as a plain string trait
+  alongside the widget's data traits (<code>frame_urls</code>, <code>trajectories</code>, etc.).
+  Once a notebook cell displaying the widget is executed and saved, that whole state — JS source
+  included — is embedded in the <code>.ipynb</code> file itself, under
+  <code>metadata.widgets["application/vnd.jupyter.widget-state+json"]</code>. Nothing needs to be
+  published anywhere for this part; it's just a big JSON blob sitting in the notebook.
+</p>
+
+<h2>The dead end: classic ipywidgets static embedding doesn't work for anywidget</h2>
+<p>
+  The obvious path is nbconvert's <code>HTMLExporter</code> or
+  <code>ipywidgets.embed.embed_minimal_html</code> — both pull in
+  <code>@jupyter-widgets/html-manager</code>, a requirejs/AMD-based renderer, from a CDN at
+  page-load time. This works fine for classic ipywidgets controls (sliders, dropdowns), but
+  <strong>fails for anywidget widgets specifically</strong>, and no amount of CDN version pinning
+  fixes it. The reason: anywidget's real npm package
+  (<a href="https://cdn.jsdelivr.net/npm/anywidget@0.9.21/package.json">check its package.json</a>)
+  declares <code>"type": "module"</code> with <code>"main": "dist/index.js"</code> and no
+  UMD/AMD build at all. Requirejs's classic <code>define()</code>/<code>require()</code> system
+  cannot consume a pure ES module — the two module systems are fundamentally different, not a
+  version-compatibility gap.
+</p>
+<div class="callout">
+  <strong>Symptom, if you hit this yourself:</strong> browser console shows
+  <code>strict mode: use allowUnionTypes to allow union type keyword</code> (a red herring —
+  that's just Ajv being noisy about the widget-state schema, harmless) followed by
+  <code>anywidget.js ... 404</code> and <code>Falling back to https://cdn.jsdelivr.net/npm/ for
+  anywidget@~0.9.*</code> — the widget never actually renders after that fallback, regardless of
+  network reachability or html-manager version.
+</div>
+
+<h2>The fix: anywidget's own portability spec (AFM)</h2>
+<p>
+  anywidget defines the <a href="https://anywidget.dev/en/afm">Anywidget Front-End Module (AFM)</a>
+  specification precisely for this situation — "widget reuse... beyond Jupyter, including...
+  standalone web applications." A widget's <code>_esm</code> is just an ES module with
+  <code>initialize({model, signal})</code> and <code>render({model, el, signal, host})</code>
+  lifecycle hooks; a <strong>host platform</strong> just needs to implement a small
+  <code>AnyModel</code> interface (<code>get</code>/<code>set</code>/<code>on</code>/
+  <code>off</code>/<code>save_changes</code>/<code>send</code>) and call those hooks. This site's
+  host is <code>site/vendor/afm_host.js</code> — about 60 lines, no dependencies, no CDN calls at
+  all. <code>site/build_site.py</code>'s <code>export_widget_page</code> pulls the widget's
+  <code>_esm</code>/<code>_css</code> and traits straight out of the executed notebook's saved
+  state, writes them as <code>{page}_widget.mjs</code> / <code>{page}_widget.css</code>, and
+  generates a small HTML page that imports the host and calls <code>renderAFM(...)</code>.
+</p>
+
+<h3>Gotchas, if you extend this</h3>
+<ul>
+  <li><strong>One <code>AnyModel</code> per notebook, assumed.</strong>
+    <code>export_widget_page</code> requires exactly one anywidget model in the notebook's saved
+    state and errors otherwise. <code>0_viz_3_correlation_explorer.ipynb</code> also has a classic
+    <code>ipywidgets.interact</code> dropdown cell (needs a live kernel to recompute on change) —
+    that part is silently dropped; only the Clustergram itself is exported.</li>
+  <li><strong><code>set()</code>/<code>save_changes()</code> semantics matter.</strong> The host
+    mimics ipywidgets' real staged-write pattern: <code>model.set(key, val)</code> stages a
+    pending value, <code>model.save_changes()</code> commits it and fires
+    <code>change:key</code> listeners. A naive "set commits immediately" implementation would
+    still mostly work but doesn't match what a widget's own JS expects if it ever reads
+    <code>model.get()</code> between a <code>set()</code> and the matching
+    <code>save_changes()</code>.</li>
+  <li><strong>Escape <code>&lt;/script&gt;</code> in embedded JSON.</strong> The widget state is
+    inlined as a JSON literal inside a <code>&lt;script type="module"&gt;</code> tag;
+    <code>build_site.py</code> replaces any literal <code>&lt;/script</code> substring with an
+    escaped form before embedding, since a raw occurrence would prematurely close the tag.</li>
+  <li><strong>Serve over HTTP, not <code>file://</code>.</strong> ES module <code>import()</code>
+    is blocked under the <code>file://</code> protocol by browser security policy — always
+    <code>python -m http.server</code> (or similar), never open the HTML file directly.</li>
+  <li><strong>Can't fully test WebGL-based widgets outside a browser.</strong> Node can import and
+    syntax-check a widget's <code>.mjs</code> and confirm it exports a <code>render</code>
+    function, but deck.gl-based widgets (scrubber, linked view) reference <code>window</code>/DOM
+    at module load time, so a real browser is needed to confirm they actually draw anything.</li>
+</ul>
+
+<h2>No publishing needed</h2>
+<p>
+  None of this requires publishing our widget JS to npm or the Python package to PyPI. anywidget
+  itself (the generic host-bridge concept) is already a public package, but we don't consume it as
+  a package at all in this approach — <code>afm_host.js</code> is a from-scratch, from-spec
+  implementation, and every widget's actual JS ships as a plain file alongside the HTML that uses
+  it, exactly like the rest of this static site.
+</p>
+
+<p><a href="index.html">&larr; back to all results</a></p>
+
+</main>
+</body>
+</html>
