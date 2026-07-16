@@ -139,6 +139,15 @@
     syntax-check a widget's <code>.mjs</code> and confirm it exports a <code>render</code>
     function, but deck.gl-based widgets (scrubber, linked view) reference <code>window</code>/DOM
     at module load time, so a real browser is needed to confirm they actually draw anything.</li>
+  <li><strong>Resolve relative URLs against the page, not against <code>afm_host.js</code>.</strong>
+    A relative specifier passed into <code>renderAFM({{esmUrl: "./foo.mjs", ...}})</code> gets
+    resolved by the <code>import()</code> call <em>inside</em> <code>afm_host.js</code> — relative
+    to <strong>its own location</strong> (<code>vendor/</code>), not the page that called
+    <code>renderAFM</code>. Hit this directly: passing a bare relative path produced
+    <code>GET .../vendor/scrubber_widget.mjs</code> (404) instead of
+    <code>.../scrubber_widget.mjs</code>. Fix: resolve to an absolute URL in the page's own
+    inline script first, where <code>import.meta.url</code> correctly refers to the page itself:
+    <code>new URL("./scrubber_widget.mjs", import.meta.url).href</code>.</li>
 </ul>
 
 <h2>No publishing needed</h2>

@@ -90,8 +90,14 @@ _WIDGET_PAGE_TEMPLATE = """<!doctype html>
 <script type="module">
   import {{ renderAFM }} from "./vendor/afm_host.js";
   const state = {state_json};
+  // Resolve relative to THIS page (import.meta.url here), not to afm_host.js's own
+  // location -- a relative specifier passed into renderAFM would otherwise be resolved
+  // relative to vendor/afm_host.js by the import() call inside it, landing one directory
+  // off (vendor/{slug}_widget.mjs instead of {slug}_widget.mjs).
+  const esmUrl = new URL("./{slug}_widget.mjs", import.meta.url).href;
+  const cssUrl = new URL("./{slug}_widget.css", import.meta.url).href;
   try {{
-    await renderAFM({{ esmUrl: "./{slug}_widget.mjs", cssUrl: "./{slug}_widget.css", state, el: document.getElementById("widget-root") }});
+    await renderAFM({{ esmUrl, cssUrl, state, el: document.getElementById("widget-root") }});
   }} catch (err) {{
     console.error(err);
     const pre = document.getElementById("widget-error");
