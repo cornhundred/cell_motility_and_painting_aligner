@@ -1,0 +1,61 @@
+.mcp-dual {
+  box-sizing: border-box;
+  max-width: 100%;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #111827;
+}
+
+.mcp-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 12px;
+}
+
+.mcp-toolbar button {
+  min-height: 28px;
+  border: 1px solid #b8c0cc;
+  background: #f8fafc;
+  border-radius: 6px;
+  padding: 4px 10px;
+  color: #172033;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.mcp-toolbar button:hover { background: #eef2f7; }
+
+.mcp-toolbar input[type="range"] { accent-color: #2563eb; cursor: pointer; }
+
+.mcp-meta { color: #334155; white-space: nowrap; }
+.mcp-info { font-weight: 600; }
+
+.mcp-panels {
+  display: flex;
+  gap: 10px;
+}
+
+.mcp-panel {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.mcp-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #334155;
+  margin-bottom: 4px;
+}
+
+.mcp-canvas {
+  position: relative;
+  min-width: 0;
+  border: 1px solid #b8c0cc;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #0f172a;
+}

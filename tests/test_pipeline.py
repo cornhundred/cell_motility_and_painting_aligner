@@ -2,7 +2,7 @@ from pathlib import Path
 
 import numpy as np
 
-from cell_motility_painting_aligner.pipeline import (
+from motility_painting.pipeline import (
     build_cellpose_command,
     build_cellprofiler_command,
     candidate_matches_from_transform,

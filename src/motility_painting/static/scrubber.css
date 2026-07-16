@@ -1,0 +1,48 @@
+.motility-painting {
+  box-sizing: border-box;
+  max-width: 100%;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #111827;
+}
+
+.cell-motility-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 12px;
+}
+
+.cell-motility-toolbar button {
+  min-height: 28px;
+  border: 1px solid #b8c0cc;
+  background: #f8fafc;
+  border-radius: 6px;
+  padding: 4px 10px;
+  color: #172033;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.cell-motility-toolbar button:hover {
+  background: #eef2f7;
+}
+
+.cell-motility-toolbar input[type="range"] {
+  accent-color: #2563eb;
+  cursor: pointer;
+}
+
+.cell-motility-meta {
+  color: #334155;
+  white-space: nowrap;
+}
+
+.cell-motility-panel {
+  position: relative;
+  min-width: 0;
+  border: 1px solid #b8c0cc;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #0f172a;
+}
