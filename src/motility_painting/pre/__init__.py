@@ -27,8 +27,9 @@ from .morphology import (
 )
 from .nullmodel import (
     permutation_displacement_test,
+    pool_all_steps,
     population_displacement_test,
-    randomize_step_directions,
+    resample_from_pool,
     stepwise_turning_angles,
     turning_angle_autocorrelation,
 )
@@ -70,8 +71,9 @@ __all__ = [
     "join_shape_to_trajectories",
     "shape_variability",
     "permutation_displacement_test",
+    "pool_all_steps",
     "population_displacement_test",
-    "randomize_step_directions",
+    "resample_from_pool",
     "stepwise_turning_angles",
     "turning_angle_autocorrelation",
     "all_frames_collisions",

@@ -1,20 +1,26 @@
-"""Random-walk null model for LCI trajectories.
+"""Random-walk null model for LCI trajectories, built only from real observed steps.
 
-Cells could look "directional" simply because a random walk with the same
-step-length (speed) distribution occasionally drifts. This module builds that
-null model and tests observed net displacement / heading persistence against
-it.
+Cells could look "directional" simply because a walk with the same step
+lengths occasionally drifts. This module builds a null model and tests
+observed net displacement / heading persistence against it.
 
-Note on the null model: reshuffling a trajectory's own steps by *order* alone
-(as in the early exploratory draft this replaces) cannot change net
-displacement or path length -- vector summation is order-invariant, so
-"shuffled" and "real" always sum to the identical endpoint. The null here
-instead **keeps each step's speed but randomizes its direction** (iid uniform
-angle), which destroys any correlation between consecutive step directions
-while preserving the per-cell speed profile -- the standard "correlated vs.
-uncorrelated random walk with matched step-length distribution" test, and the
-only version of this null that can actually differ from the observed
-trajectory.
+Two simpler nulls were ruled out:
+
+- Reshuffling a trajectory's own steps by *order* alone cannot change net
+  displacement or path length -- vector summation is order-invariant, so
+  "shuffled" and "real" always sum to the identical endpoint.
+- Keeping each step's speed but replacing its direction with a synthetic
+  random angle *can* differ from the observed trajectory, but the angles
+  aren't real data -- too far from what a cell actually does.
+
+The null here instead **pools every real (dx, dy) step from every trajectory**
+and builds each null trajectory by resampling (with replacement) that many
+real steps from the pool. This uses only steps cells actually took -- never a
+fabricated angle -- while breaking a trajectory's own temporal order/identity
+(a null trajectory's steps come from many different cells at many different
+moments), which is exactly the "no memory" hypothesis: if a cell's own step
+sequence carries no directional persistence, its net displacement should look
+like a random draw from the population-wide step pool.
 
 Works on a long (one row per trajectory per frame) table like
 ``outputs/lci_trajectories_to_frame59.parquet`` -- no restriction to
@@ -69,28 +75,41 @@ def stepwise_turning_angles(
     return pd.DataFrame(rows)
 
 
-def _random_direction_steps(steps: np.ndarray, *, rng: np.random.Generator) -> np.ndarray:
-    """Same-speed, iid-random-direction resample of a trajectory's steps.
+def pool_all_steps(
+    traj: pd.DataFrame,
+    *,
+    traj_col: str = "trajectory_id",
+    x_col: str = "centroid_x",
+    y_col: str = "centroid_y",
+    frame_col: str = "frame_index",
+) -> np.ndarray:
+    """Every real (dx, dy) step from every trajectory, pooled into one ``(n_steps, 2)`` array.
 
-    Returns an ``(n_steps, 2)`` array of (dx, dy) -- same shape and per-step
-    magnitude as ``steps``, but with each direction replaced by an independent
-    uniform-random angle.
+    This is the "big pot of steps" the resampling null draws from -- every
+    entry is a step some real cell actually took somewhere in the movie.
     """
-    magnitudes = np.hypot(steps[:, 0], steps[:, 1])
-    angles = rng.uniform(0.0, 2.0 * np.pi, size=len(steps))
-    return magnitudes[:, None] * np.column_stack([np.cos(angles), np.sin(angles)])
+    parts = [
+        _steps_xy(g, x_col, y_col, frame_col) for _, g in traj.groupby(traj_col) if len(g) >= 2
+    ]
+    return np.concatenate(parts, axis=0) if parts else np.empty((0, 2))
 
 
-def randomize_step_directions(steps: np.ndarray, *, rng: np.random.Generator) -> np.ndarray:
-    """Return a trajectory (starting at the origin) with the same step speeds but iid random directions.
+def resample_from_pool(n_steps: int, pool: np.ndarray, *, rng: np.random.Generator) -> np.ndarray:
+    """Draw ``n_steps`` real steps at random (with replacement) from ``pool``.
 
-    ``steps`` is an ``(n_steps, 2)`` array of per-frame (dx, dy) displacements
-    for one trajectory. Each step's magnitude (speed) is kept; its direction
-    is replaced with an independent uniform-random angle, which destroys
-    directional persistence while matching the cell's own speed profile.
+    Returns an ``(n_steps, 2)`` array of (dx, dy) -- a mix of real steps taken
+    from (potentially many) different cells at different moments, so a
+    trajectory built from this has no directional memory by construction, but
+    every individual step is a real observed one.
     """
-    random_steps = _random_direction_steps(steps, rng=rng)
-    return np.vstack([np.zeros(2), np.cumsum(random_steps, axis=0)])
+    idx = rng.integers(0, len(pool), size=n_steps)
+    return pool[idx]
+
+
+def _pool_resampled_path(n_steps: int, pool: np.ndarray, *, rng: np.random.Generator) -> np.ndarray:
+    """A trajectory (starting at the origin) built from ``n_steps`` pool-resampled real steps."""
+    steps = resample_from_pool(n_steps, pool, rng=rng)
+    return np.vstack([np.zeros(2), np.cumsum(steps, axis=0)])
 
 
 def permutation_displacement_test(
@@ -104,21 +123,24 @@ def permutation_displacement_test(
     n_shuffles: int = 1000,
     seed: int = 0,
 ) -> pd.DataFrame:
-    """Per-trajectory net displacement vs. a direction-randomized null.
+    """Per-trajectory net displacement vs. a pool-resampled null (real steps only).
 
     For each trajectory with at least ``min_frames`` positions, computes the
-    observed net displacement and, from ``n_shuffles`` direction-randomized
-    resamples (:func:`randomize_step_directions`), a null distribution of net
-    displacement. Returns one row per trajectory: ``trajectory_id, n_frames,
-    observed_displacement, null_mean, null_std, p_value`` (``p_value`` =
-    fraction of null resamples with displacement >= observed -- a one-sided
-    empirical permutation p-value).
+    observed net displacement and, from ``n_shuffles`` null trajectories built
+    by resampling that many real steps from the whole-population pool
+    (:func:`pool_all_steps` / :func:`resample_from_pool`), a null distribution
+    of net displacement. Returns one row per trajectory: ``trajectory_id,
+    n_frames, observed_displacement, null_mean, null_std, p_value``
+    (``p_value`` = fraction of null resamples with displacement >= observed --
+    a one-sided empirical permutation p-value).
 
     A population-level test (paired: is observed greater than each
     trajectory's own null mean?) can be run on the returned table with
     :func:`population_displacement_test`.
     """
     rng = np.random.default_rng(seed)
+    pool = pool_all_steps(traj, traj_col=traj_col, x_col=x_col, y_col=y_col, frame_col=frame_col)
+
     rows = []
     for tid, g in traj.groupby(traj_col):
         if len(g) < min_frames:
@@ -128,7 +150,7 @@ def permutation_displacement_test(
 
         null_disp = np.empty(n_shuffles)
         for i in range(n_shuffles):
-            path = randomize_step_directions(steps, rng=rng)
+            path = _pool_resampled_path(len(steps), pool, rng=rng)
             null_disp[i] = np.hypot(*(path[-1] - path[0]))
 
         rows.append(
@@ -150,8 +172,7 @@ def population_displacement_test(per_trajectory: pd.DataFrame) -> dict:
     ``per_trajectory`` is the output of :func:`permutation_displacement_test`.
     Returns ``{"n", "statistic", "p_value", "median_diff"}`` -- a single
     headline number for "are real trajectories more directed than a
-    direction-randomized walk with the same speed profile, across the
-    population".
+    pool-resampled walk built from real steps, across the population".
     """
     diff = per_trajectory["observed_displacement"] - per_trajectory["null_mean"]
     stat, p = stats.wilcoxon(diff, alternative="greater")
@@ -175,20 +196,22 @@ def turning_angle_autocorrelation(
     n_shuffles: int = 200,
     seed: int = 0,
 ) -> pd.DataFrame:
-    """Step-heading autocorrelation vs. lag, real vs. a direction-randomized null.
+    """Step-heading autocorrelation vs. lag, real vs. a pool-resampled null (real steps only).
 
     For each trajectory, headings are ``atan2(dy, dx)`` per step; the
     autocorrelation at lag *k* is the mean cosine of the heading difference
     ``k`` steps apart, averaged first within a trajectory then across
-    trajectories (real motion) and separately for ``n_shuffles``
-    direction-randomized resamples of each trajectory's own step speeds
-    (null, :func:`randomize_step_directions`). Persistent/directed motion
-    shows real autocorrelation decaying slower than the null, which is flat
-    near 0 at all lags by construction (iid random directions).
+    trajectories (real motion) and separately for ``n_shuffles`` pool-resampled
+    trajectories built from that trajectory's own step count
+    (null, :func:`resample_from_pool`). Persistent/directed motion shows real
+    autocorrelation decaying slower than the null, which is flat near 0 at all
+    lags by construction (steps are drawn independently from the pool, so
+    consecutive null steps have no directional relationship).
 
     Returns one row per lag: ``lag, real_mean, null_mean, null_std``.
     """
     rng = np.random.default_rng(seed)
+    pool = pool_all_steps(traj, traj_col=traj_col, x_col=x_col, y_col=y_col, frame_col=frame_col)
 
     def _heading_autocorr(steps: np.ndarray, lag: int) -> float:
         if len(steps) <= lag:
@@ -210,7 +233,7 @@ def turning_angle_autocorrelation(
 
         null_vals: dict[int, list[float]] = {lag: [] for lag in range(1, max_lag + 1)}
         for _ in range(n_shuffles):
-            random_steps = _random_direction_steps(steps, rng=rng)
+            random_steps = resample_from_pool(len(steps), pool, rng=rng)
             for lag in range(1, max_lag + 1):
                 v = _heading_autocorr(random_steps, lag)
                 if not np.isnan(v):
