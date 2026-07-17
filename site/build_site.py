@@ -34,6 +34,31 @@ from pathlib import Path
 
 import nbformat
 from nbconvert import HTMLExporter
+from shapely.geometry import Polygon
+
+# Segmentation outlines are cached at a research-fidelity simplify tolerance
+# (1.0px, ~48MB/65 frames) for the interactive notebooks, where the point is to
+# actually judge segmentation quality. For the shipped static site, re-simplify
+# a bit further (still visually a faithful outline at cell scale, ~15-20px
+# diameter) and drop to integer pixel coordinates -- this keeps the page well
+# under the site's 100MB budget without touching the notebook's own cache.
+POLYGON_SITE_SIMPLIFY_TOLERANCE = 1.5
+
+
+def _coarsen_polygons_for_site(background_polygons: list) -> list:
+    coarsened = []
+    for frame_polys in background_polygons:
+        frame_out = []
+        for ring in frame_polys:
+            try:
+                simplified = Polygon(ring).simplify(POLYGON_SITE_SIMPLIFY_TOLERANCE, preserve_topology=True)
+                if simplified.is_empty or simplified.geom_type != "Polygon":
+                    continue
+                frame_out.append([[round(x), round(y)] for x, y in simplified.exterior.coords])
+            except Exception:
+                continue
+        coarsened.append(frame_out)
+    return coarsened
 
 NOTEBOOKS_DIR = Path("/home/jovyan/workbench/claude_notebooks/notebooks")
 SITE_DIR = Path(__file__).resolve().parent
@@ -128,6 +153,12 @@ def export_widget_page(source_name: str, slug: str, title: str) -> int:
     esm = model_state["_esm"]
     css = model_state.get("_css") or ""
     widget_state = {k: v for k, v in model_state.items() if k not in _BOOKKEEPING_KEYS}
+
+    if "background_polygons" in widget_state:
+        before = len(json.dumps(widget_state["background_polygons"]))
+        widget_state["background_polygons"] = _coarsen_polygons_for_site(widget_state["background_polygons"])
+        after = len(json.dumps(widget_state["background_polygons"]))
+        print(f"  {slug}: re-simplified background_polygons for the site ({before/1e6:.1f}MB -> {after/1e6:.1f}MB)")
 
     # Traits too large for plain JSON (e.g. celldega's parquet-encoded dataframes) travel as
     # separate binary buffers rather than inline state -- mark them so afm_host.js's

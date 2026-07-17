@@ -7,7 +7,7 @@
 // the UMD namespace to an empty object and every deck.gl symbol becomes undefined.
 import * as deckgl from './vendor/deckgl.min.cjs'
 const deck = deckgl.default ?? deckgl
-const {BitmapLayer, Deck, OrthographicView, PathLayer, ScatterplotLayer} = deck
+const {BitmapLayer, Deck, OrthographicView, PathLayer, PolygonLayer, ScatterplotLayer} = deck
 
 // Deterministic bright-ish color per trajectory id so a cell keeps its hue.
 function colorForId(id) {
@@ -58,9 +58,10 @@ function render({model, el}) {
   frameLabel.className = 'cell-motility-meta'
   const imageToggle = document.createElement('button')
   const bgToggle = document.createElement('button')
+  const polyToggle = document.createElement('button')
   const trailMeta = document.createElement('span')
   trailMeta.className = 'cell-motility-meta'
-  toolbar.append(playButton, slider, frameLabel, imageToggle, bgToggle, trailMeta)
+  toolbar.append(playButton, slider, frameLabel, imageToggle, bgToggle, polyToggle, trailMeta)
   el.appendChild(toolbar)
 
   const panel = document.createElement('div')
@@ -87,6 +88,21 @@ function render({model, el}) {
       if (url) {
         layers.push(new BitmapLayer({id: 'frame-image', image: url, bounds: [0, height, width, 0]}))
       }
+    }
+
+    // segmentation outline per detected cell this frame, under the tracks/dots
+    if (model.get('show_polygons')) {
+      const polys = (model.get('background_polygons') || [])[f] || []
+      layers.push(new PolygonLayer({
+        id: 'polygons',
+        data: polys,
+        getPolygon: (d) => d,
+        stroked: true,
+        filled: false,
+        getLineColor: [255, 225, 0, 190],
+        lineWidthUnits: 'pixels',
+        getLineWidth: 1,
+      }))
     }
 
     // every detected cell this frame, as small black dots under the tracks
@@ -192,6 +208,7 @@ function render({model, el}) {
     playButton.textContent = model.get('playing') ? '❚❚ Pause' : '► Play'
     imageToggle.textContent = model.get('show_image') ? 'Hide image' : 'Show image'
     bgToggle.textContent = model.get('show_background') ? 'Hide others' : 'Show others'
+    polyToggle.textContent = model.get('show_polygons') ? 'Hide polygons' : 'Show polygons'
     const mode = model.get('show_full_path') ? 'full path' : `trail ${model.get('trail_length') || 'full'}`
     trailMeta.textContent = `${(model.get('trajectories') || []).length} tracked · ${mode}`
   }
@@ -218,6 +235,7 @@ function render({model, el}) {
   playButton.addEventListener('click', () => { model.set('playing', !model.get('playing')); model.save_changes() })
   imageToggle.addEventListener('click', () => { model.set('show_image', !model.get('show_image')); model.save_changes() })
   bgToggle.addEventListener('click', () => { model.set('show_background', !model.get('show_background')); model.save_changes() })
+  polyToggle.addEventListener('click', () => { model.set('show_polygons', !model.get('show_polygons')); model.save_changes() })
   slider.addEventListener('input', () => { model.set('current_frame', Number(slider.value)); model.save_changes() })
 
   model.on('change:playing', () => {
@@ -226,8 +244,8 @@ function render({model, el}) {
   })
   model.on('change:current_frame', updateLayers)
   model.on('change:trajectories', () => { pathCache = buildPathCache(model); updateLayers() })
-  const simple = ['frame_urls', 'background_points', 'trail_length', 'point_radius',
-                  'show_image', 'show_background', 'show_full_path', 'image_size', 'fps']
+  const simple = ['frame_urls', 'background_points', 'background_polygons', 'trail_length', 'point_radius',
+                  'show_image', 'show_background', 'show_polygons', 'show_full_path', 'image_size', 'fps']
   for (const name of simple) {
     model.on(`change:${name}`, () => {
       if (name === 'fps' && model.get('playing')) startTimer()

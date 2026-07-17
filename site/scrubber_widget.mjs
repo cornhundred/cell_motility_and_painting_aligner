@@ -42408,7 +42408,7 @@ fragColor.g = outTexture.r / max(1.0, outTexture.a);
 // scrubber_widget.mjs
 var deckgl = __toESM(require_deckgl_min(), 1);
 var deck = deckgl.default ?? deckgl;
-var { BitmapLayer, Deck, OrthographicView, PathLayer, ScatterplotLayer } = deck;
+var { BitmapLayer, Deck, OrthographicView, PathLayer, PolygonLayer, ScatterplotLayer } = deck;
 function colorForId(id) {
   let h = (Number(id) + 1) * 2654435761 % 2 ** 32;
   const r = h & 255;
@@ -42449,9 +42449,10 @@ function render({ model, el }) {
   frameLabel.className = "cell-motility-meta";
   const imageToggle = document.createElement("button");
   const bgToggle = document.createElement("button");
+  const polyToggle = document.createElement("button");
   const trailMeta = document.createElement("span");
   trailMeta.className = "cell-motility-meta";
-  toolbar.append(playButton, slider, frameLabel, imageToggle, bgToggle, trailMeta);
+  toolbar.append(playButton, slider, frameLabel, imageToggle, bgToggle, polyToggle, trailMeta);
   el.appendChild(toolbar);
   const panel = document.createElement("div");
   panel.className = "cell-motility-panel";
@@ -42473,6 +42474,19 @@ function render({ model, el }) {
       if (url) {
         layers.push(new BitmapLayer({ id: "frame-image", image: url, bounds: [0, height, width, 0] }));
       }
+    }
+    if (model.get("show_polygons")) {
+      const polys = (model.get("background_polygons") || [])[f] || [];
+      layers.push(new PolygonLayer({
+        id: "polygons",
+        data: polys,
+        getPolygon: (d) => d,
+        stroked: true,
+        filled: false,
+        getLineColor: [255, 225, 0, 190],
+        lineWidthUnits: "pixels",
+        getLineWidth: 1
+      }));
     }
     if (model.get("show_background")) {
       const bg = (model.get("background_points") || [])[f] || [];
@@ -42580,6 +42594,7 @@ function render({ model, el }) {
     playButton.textContent = model.get("playing") ? "\u275A\u275A Pause" : "\u25BA Play";
     imageToggle.textContent = model.get("show_image") ? "Hide image" : "Show image";
     bgToggle.textContent = model.get("show_background") ? "Hide others" : "Show others";
+    polyToggle.textContent = model.get("show_polygons") ? "Hide polygons" : "Show polygons";
     const mode = model.get("show_full_path") ? "full path" : `trail ${model.get("trail_length") || "full"}`;
     trailMeta.textContent = `${(model.get("trajectories") || []).length} tracked \xB7 ${mode}`;
   }
@@ -42615,6 +42630,10 @@ function render({ model, el }) {
     model.set("show_background", !model.get("show_background"));
     model.save_changes();
   });
+  polyToggle.addEventListener("click", () => {
+    model.set("show_polygons", !model.get("show_polygons"));
+    model.save_changes();
+  });
   slider.addEventListener("input", () => {
     model.set("current_frame", Number(slider.value));
     model.save_changes();
@@ -42632,10 +42651,12 @@ function render({ model, el }) {
   const simple = [
     "frame_urls",
     "background_points",
+    "background_polygons",
     "trail_length",
     "point_radius",
     "show_image",
     "show_background",
+    "show_polygons",
     "show_full_path",
     "image_size",
     "fps"

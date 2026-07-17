@@ -39,6 +39,11 @@ class TrajectoryScrubber(anywidget.AnyWidget):
     # All detected centroids per frame position, drawn black under the tracks:
     #   [[[x, y], ...],  ...]  (outer index = frame_pos)
     background_points = traitlets.List(traitlets.List(traitlets.List(traitlets.Float())), default_value=[]).tag(sync=True)
+    # Segmentation polygon outline per detected cell per frame position (simplified exterior rings):
+    #   [[[[x, y], ...], ...], ...]  (outer index = frame_pos, then one ring per cell)
+    background_polygons = traitlets.List(
+        traitlets.List(traitlets.List(traitlets.List(traitlets.Float()))), default_value=[]
+    ).tag(sync=True)
 
     current_frame = traitlets.Int(0).tag(sync=True)
     show_full_path = traitlets.Bool(True).tag(sync=True)  # full past+future vs. windowed trail
@@ -46,6 +51,7 @@ class TrajectoryScrubber(anywidget.AnyWidget):
     point_radius = traitlets.Float(6.0).tag(sync=True)    # head radius in image (world) px; shrinks when zoomed out
     show_image = traitlets.Bool(True).tag(sync=True)
     show_background = traitlets.Bool(True).tag(sync=True)
+    show_polygons = traitlets.Bool(False).tag(sync=True)  # segmentation outlines, off by default (heavier payload)
     playing = traitlets.Bool(False).tag(sync=True)
     fps = traitlets.Int(8).tag(sync=True)
 
@@ -63,6 +69,8 @@ class TrajectoryScrubber(anywidget.AnyWidget):
         image_size: tuple[int, int] = (2960, 2960),
         only_reaching_last: bool = True,
         background_frames: Any = None,
+        include_polygons: bool = False,
+        polygon_simplify_tolerance: float = 1.0,
         **kwargs: Any,
     ) -> "TrajectoryScrubber":
         """Build a scrubber from a trajectories DataFrame and prepared frames.
@@ -76,6 +84,14 @@ class TrajectoryScrubber(anywidget.AnyWidget):
         ``background_frames`` is an optional list of per-frame GeoDataFrames (the
         list returned by ``track_from_dir``); when given, every detected centroid
         is sent as a black background dot for that frame. Pass ``None`` to skip.
+
+        ``include_polygons=True`` additionally sends each cell's segmentation
+        outline (from the same ``background_frames`` GeoDataFrames), simplified
+        by ``polygon_simplify_tolerance`` pixels to keep the payload reasonable
+        (full unsimplified Cellpose polygons average ~68 vertices/cell; at
+        tolerance=1.0px that drops to ~9, a ~7x reduction with negligible visual
+        difference at cell scale). Off by default since it's a heavier payload
+        than centroids alone.
         """
         from ..pre.trajectories import trajectories_reaching
 
@@ -101,8 +117,11 @@ class TrajectoryScrubber(anywidget.AnyWidget):
                 records.append({"id": int(tid), "pts": pts})
 
         background_points: list[list[list[float]]] = []
+        background_polygons: list[list[list[list[float]]]] = []
         if background_frames is not None:
             background_points = [[] for _ in frame_indices]
+            if include_polygons:
+                background_polygons = [[] for _ in frame_indices]
             for gdf in background_frames:
                 fidx = int(gdf["frame_index"].iloc[0]) if "frame_index" in gdf.columns else None
                 pos = index_to_pos.get(fidx)
@@ -111,6 +130,13 @@ class TrajectoryScrubber(anywidget.AnyWidget):
                 xs = gdf["centroid_x"].to_numpy()
                 ys = gdf["centroid_y"].to_numpy()
                 background_points[pos] = [[round(float(x), 1), round(float(y), 1)] for x, y in zip(xs, ys)]
+                if include_polygons:
+                    simplified = gdf.geometry.simplify(polygon_simplify_tolerance, preserve_topology=True)
+                    background_polygons[pos] = [
+                        [[round(float(x), 1), round(float(y), 1)] for x, y in geom.exterior.coords]
+                        for geom in simplified
+                        if geom is not None and not geom.is_empty
+                    ]
 
         return cls(
             frame_urls=list(frame_urls),
@@ -118,5 +144,6 @@ class TrajectoryScrubber(anywidget.AnyWidget):
             image_size=[int(image_size[0]), int(image_size[1])],
             trajectories=records,
             background_points=background_points,
+            background_polygons=background_polygons,
             **kwargs,
         )
